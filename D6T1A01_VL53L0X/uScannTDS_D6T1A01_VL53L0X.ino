@@ -38,17 +38,21 @@ BLECharacteristic *pDistChar;
 BLECharacteristic *pLedChar;
 BLECharacteristic *pVerChar;
 
+int gDistCm = 0;
 
 float getTempFH()
 {
   float temp = ReadTemp();    //Read temp sensor           //random(80,120);
-  float dist = ReadDistance();//Comes in mm
-
-  if(dist < DIST_TH)//if the object is too far (beyond distance threshold define) from the sensor, no need to apply correction
+  float dist = gDistCm * 10.0; //convert to mm
+  //float dist = ReadDistance();//Comes in mm (dummy read)
+  //dist = ReadDistance();//Comes in mm
+  
+  if(dist > dist_th)//if the object is too far (beyond distance threshold define) from the sensor, no need to apply correction
   {
-    corr_factor = c1+(c2*dist)-(c3*(dist*dist))+(c4*(dist*dist*dist));       //(distance dependent temp)y2 = 1.14062 + 0.0004250978*x - 4.421823e-7*x^2 + 1.598316e-10*x^3
-    temp = corr_factor*temp;
+    dist = dist_th;
   }
+  corr_factor = c1+(c2*dist)-(c3*(dist*dist))+(c4*(dist*dist*dist));       //(distance dependent temp)y2 = 1.14062 + 0.0004250978*x - 4.421823e-7*x^2 + 1.598316e-10*x^3
+  temp = corr_factor*temp;
   temp = (temp*(9.0/5.0))+32; //convert to Fahrenheit
   return(temp);
 }
@@ -120,10 +124,25 @@ class DistCharCallbacks: public BLECharacteristicCallbacks
   {
     char bufDist[16] = {0,};
     int distCm = getDistCm(); //Measure distance using laser device
+    gDistCm = distCm; //for use in calculating correction factor
     sprintf(bufDist,"%d",distCm);
     strcat(bufDist," cm");
     pCharacteristic->setValue(bufDist);
     Serial.print("Distance: ");Serial.println(bufDist);
+  }
+  void onWrite(BLECharacteristic *pCharacteristic)
+  {
+    std::string value = pCharacteristic->getValue();
+
+    if(value.length() > 0)
+    {
+      Serial.print("Received: ");
+      for (int i = 0; i < value.length(); i++)
+      {
+        Serial.print(value[i]);
+      }
+      Serial.println();
+    }
   }
 };
 
@@ -181,7 +200,7 @@ void setup()
   pService = pServer->createService(SERVICE_UUID);
 
   pTempChar = pService->createCharacteristic(TEMP_CHAR_UUID,BLECharacteristic::PROPERTY_READ);// | BLECharacteristic::PROPERTY_WRITE);
-  pDistChar = pService->createCharacteristic(DIST_CHAR_UUID,BLECharacteristic::PROPERTY_READ);// | BLECharacteristic::PROPERTY_WRITE);
+  pDistChar = pService->createCharacteristic(DIST_CHAR_UUID,BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   pLedChar = pService->createCharacteristic(LED_CHAR_UUID,/*BLECharacteristic::PROPERTY_READ |*/ BLECharacteristic::PROPERTY_WRITE);
   pVerChar = pService->createCharacteristic(VER_CHAR_UUID,BLECharacteristic::PROPERTY_READ);// | BLECharacteristic::PROPERTY_WRITE);
 
@@ -198,7 +217,7 @@ void setup()
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
   BLEDevice::startAdvertising();
-  Serial.println("DWP Temp Scanner Ready!");
+  Serial.println("uScann Sensor Ready!");
 
    delay(500);
  

@@ -13,7 +13,7 @@
 #define READ_BUFSIZE                    (20)
 #define GRN 15
 #define RED 2
-#define DIST_TH 1200 //millimeter (~4feet)
+
 /* defines for OMRON Thermal Sensor*/
 #define D6T_ADDR 0x0A  // for I2C 7bit address
 #define D6T_CMD 0x4C  // for D6T-44L-06/06H, D6T-8L-09/09H, for D6T-1A-01/02
@@ -112,6 +112,7 @@ int delaypluse=1; // delay between pulses
 int i,j,k,qfl;
 long duration, cm, inches;
 float AmbTempC,ObjTempC,CtempC,Distance;
+int dist_th = 800; //millimeter (~3feet)
 
 // Variables for OMRON sensor
 
