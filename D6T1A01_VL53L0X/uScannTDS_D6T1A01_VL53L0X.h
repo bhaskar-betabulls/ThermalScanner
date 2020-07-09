@@ -112,7 +112,7 @@ int delaypluse=1; // delay between pulses
 int i,j,k,qfl;
 long duration, cm, inches;
 float AmbTempC,ObjTempC,CtempC,Distance;
-int dist_th = 800; //millimeter (~3feet)
+int dist_th_mm = 800; //millimeter (~3feet)
 
 // Variables for OMRON sensor
 

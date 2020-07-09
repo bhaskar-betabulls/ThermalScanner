@@ -47,9 +47,9 @@ float getTempFH()
   //float dist = ReadDistance();//Comes in mm (dummy read)
   //dist = ReadDistance();//Comes in mm
   
-  if(dist > dist_th)//if the object is too far (beyond distance threshold define) from the sensor, no need to apply correction
+  if(dist > dist_th_mm)//if the object is too far (beyond distance threshold define) from the sensor, no need to apply correction
   {
-    dist = dist_th;
+    dist = dist_th_mm;
   }
   corr_factor = c1+(c2*dist)-(c3*(dist*dist))+(c4*(dist*dist*dist));       //(distance dependent temp)y2 = 1.14062 + 0.0004250978*x - 4.421823e-7*x^2 + 1.598316e-10*x^3
   temp = corr_factor*temp;
@@ -130,8 +130,11 @@ class DistCharCallbacks: public BLECharacteristicCallbacks
     pCharacteristic->setValue(bufDist);
     Serial.print("Distance: ");Serial.println(bufDist);
   }
+  
   void onWrite(BLECharacteristic *pCharacteristic)
   {
+    char buf[16] = {0,};
+    int unit_indx = 0;
     std::string value = pCharacteristic->getValue();
 
     if(value.length() > 0)
@@ -140,9 +143,24 @@ class DistCharCallbacks: public BLECharacteristicCallbacks
       for (int i = 0; i < value.length(); i++)
       {
         Serial.print(value[i]);
+        buf[i] = value[i];
+        if(value[i] == ' ')
+        {
+          unit_indx = i+1;
+          buf[i] = 0;
+        }
       }
       Serial.println();
     }
+    
+    dist_th_mm = strtoul(buf, NULL, 10);//convert chars to number
+    if(strcmp(&value[unit_indx],"cm")== NULL)
+    //if(value.substring(value.indexOf(' ')+1) == "cm")
+    {
+      Serial.println("Converting to mm");
+      dist_th_mm = dist_th_mm * 10;//convert to mm      
+    }
+    Serial.printf("Dist threshold: %dmm\n",dist_th_mm);
   }
 };
 
@@ -191,11 +209,24 @@ class VerCharCallbacks: public BLECharacteristicCallbacks
 
 void setup()
 {
+  uint64_t EspEfuseMac = 0;
+  char SensorBTname[32] = {0,};
+
   TestLEDs();
   Serial.begin(115200);
   Serial.print(VERSION_STR);
   
-  BLEDevice::init("uScann TDS");
+  strcpy(&SensorBTname[0], "uScann ");
+  EspEfuseMac=ESP.getEfuseMac();//The chip ID is essentially its MAC address(length: 6 bytes).
+  sprintf(&SensorBTname[7],"%04X",(uint16_t)(EspEfuseMac>>32));
+  Serial.printf("ESP32 Chip ID: %04X",(uint16_t)(EspEfuseMac>>32));//print High 2 bytes
+  sprintf(&SensorBTname[11],"%08X",(uint32_t)EspEfuseMac);
+  Serial.printf("%08X\n",(uint32_t)EspEfuseMac);//print Low 4bytes.
+
+  Serial.println(SensorBTname);
+
+  BLEDevice::init(SensorBTname);
+  //BLEDevice::init("uScann TDS");
   pServer = BLEDevice::createServer();
   pService = pServer->createService(SERVICE_UUID);
 
